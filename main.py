@@ -5,7 +5,7 @@ from google.genai import types
 from dotenv import load_dotenv
 
 from prompts import system_prompt
-from call_function import available_functions, call_function
+from call_function import call_function, available_functions
 
 
 def main():
@@ -32,7 +32,7 @@ def main():
         types.Content(role="user", parts=[types.Part(text=user_prompt)]),
     ]
 
-    result = generate_content(client, messages, verbose)    
+    generate_content(client, messages, verbose)
 
 
 def generate_content(client, messages, verbose):
@@ -50,22 +50,20 @@ def generate_content(client, messages, verbose):
     if not response.function_calls:
         return response.text
 
+    function_responses = []
     for function_call_part in response.function_calls:
         function_call_result = call_function(function_call_part, verbose)
-        
-        if not hasattr(function_call_result, 'parts') or not function_call_result.parts:
-            raise RuntimeError("Function call result missing parts attribute or empty parts")
-        
-        if not hasattr(function_call_result.parts[0], 'function_response'):
-            raise RuntimeError("Function call result missing function_response")
-        
-        if not hasattr(function_call_result.parts[0].function_response, 'response'):
-            raise RuntimeError("Function call result missing response in function_response")
-        
+        if (
+            not function_call_result.parts
+            or not function_call_result.parts[0].function_response
+        ):
+            raise Exception("empty function call result")
         if verbose:
             print(f"-> {function_call_result.parts[0].function_response.response}")
-        
-        return function_call_result
+        function_responses.append(function_call_result.parts[0])
+
+    if not function_responses:
+        raise Exception("no function responses generated, exiting.")
 
 
 if __name__ == "__main__":
