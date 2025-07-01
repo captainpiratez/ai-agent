@@ -13,7 +13,7 @@ def get_file_content(working_directory, file_path):
     try:
         with open(abs_file_path, "r") as f:
             content = f.read(MAX_CHARS)
-            if len(content) == MAX_CHARS:
+            if os.path.getsize(abs_file_path) > MAX_CHARS:
                 content += (
                     f'[...File "{file_path}" truncated at {MAX_CHARS} characters]'
                 )
