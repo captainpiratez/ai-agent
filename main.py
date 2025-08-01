@@ -6,6 +6,7 @@ from dotenv import load_dotenv
 
 from prompts import system_prompt
 from call_function import call_function, available_functions
+from config import MAX_ITERATION
 
 
 def main():
@@ -32,7 +33,8 @@ def main():
         types.Content(role="user", parts=[types.Part(text=user_prompt)]),
     ]
 
-    generate_content(client, messages, verbose)
+    run_agent_loop(client, messages, verbose)
+
 
 
 def generate_content(client, messages, verbose):
@@ -46,6 +48,10 @@ def generate_content(client, messages, verbose):
     if verbose:
         print("Prompt tokens:", response.usage_metadata.prompt_token_count)
         print("Response tokens:", response.usage_metadata.candidates_token_count)
+        print(response.candidates)
+    if response.candidates:
+        for each in response.candidates:
+            messages.append(each.content)
 
     if not response.function_calls:
         return response.text
@@ -64,7 +70,33 @@ def generate_content(client, messages, verbose):
 
     if not function_responses:
         raise Exception("no function responses generated, exiting.")
+    
+    # After you've collected all your function_responses
+    tool_message = types.Content(role="tool", parts=function_responses)
+    messages.append(tool_message)
+    
+    return (function_responses[0].function_response.response
+            if len(function_responses) == 1
+            else function_responses)
+    # Don't return the function responses - just let the loop continue
+    return None
 
+
+def run_agent_loop(client, messages, verbose):
+    for i in range(MAX_ITERATION):
+        if verbose:
+            print(f"\nIteration {i + 1}/{MAX_ITERATION}")
+        try:
+            result = generate_content(client, messages, verbose)
+        except Exception as e:
+            # handle the error
+            print(f"Error: {e}")
+            break  # or continue, depending on what you want to do
+        if result and isinstance(result, str):  # This means we got a final text response
+
+            print("Final response:")
+            print(result)
+            break  # Exit the loop
 
 if __name__ == "__main__":
     main()
